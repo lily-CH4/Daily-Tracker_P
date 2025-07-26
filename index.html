@@ -1,124 +1,766 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lilith's Daily Tracker</title>
-  <style>
-    body { font-family: Arial, sans-serif; background: #f9f9f9; padding: 20px; }
-    h1 { text-align: center; color: #4a4a4a; }
-    .section { background: #fff; padding: 15px; border-radius: 10px; margin: 20px auto; max-width: 800px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-    label { display: block; margin-top: 10px; }
-    input[type="time"], input[type="number"], select, textarea { width: 100%; padding: 8px; margin-top: 5px; }
-    input[type="checkbox"] { margin-right: 10px; }
-    .progress-bar { height: 20px; background: #e0e0e0; border-radius: 10px; overflow: hidden; margin-top: 10px; }
-    .progress-fill { height: 100%; background: #4caf50; text-align: center; color: #fff; line-height: 20px; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daily Schedule with Timers</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .completed {
+            background-color: #f8f9fa;
+            opacity: 0.7;
+        }
+        .completed .task-text {
+            text-decoration: line-through;
+            color: #6c757d;
+        }
+        .current-task {
+            background: linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%);
+            border: 3px solid #adb5bd;
+            box-shadow: 0 0 20px rgba(173, 181, 189, 0.3);
+            animation: glow 2s ease-in-out infinite alternate;
+        }
+        .current-task .task-text {
+            color: #343a40;
+            font-weight: 700;
+            font-size: 1.1em;
+        }
+        @keyframes glow {
+            from { box-shadow: 0 0 20px rgba(173, 181, 189, 0.3); }
+            to { box-shadow: 0 0 30px rgba(173, 181, 189, 0.5); }
+        }
+        
+        /* Circular Timer Styles */
+        .circular-timer {
+            position: relative;
+            width: 80px;
+            height: 80px;
+        }
+        .circular-timer svg {
+            transform: rotate(-90deg);
+            width: 100%;
+            height: 100%;
+        }
+        .circular-timer .timer-bg {
+            fill: none;
+            stroke: #e9ecef;
+            stroke-width: 6;
+        }
+        .circular-timer .timer-progress {
+            fill: none;
+            stroke: #6c757d;
+            stroke-width: 6;
+            stroke-linecap: round;
+            transition: stroke-dasharray 1s ease;
+        }
+        .circular-timer .timer-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 10px;
+            font-weight: 600;
+            color: #495057;
+            text-align: center;
+        }
+        .timer-active .timer-progress {
+            stroke: #28a745;
+        }
+        .timer-expired .timer-progress {
+            stroke: #dc3545;
+        }
+        
+        /* Popup Styles */
+        .popup-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.3s ease;
+        }
+        .popup-content {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            max-width: 400px;
+            width: 90%;
+            text-align: center;
+            animation: slideIn 0.3s ease;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes slideIn {
+            from { transform: translateY(-20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+    </style>
 </head>
-<body>
-  <h1>Topnotcher Mode: Activated</h1>
+<body class="bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8 max-w-7xl">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-gray-800 mb-2">Daily Schedule & Tasks</h1>
+            <p class="text-gray-600">Stay on track with countdown timers and manage your to-do list</p>
+            <div id="currentTime" class="text-lg font-semibold text-gray-700 mt-2"></div>
+        </div>
 
-  <div class="section">
-    <h2>Daily Habits</h2>
-    <label><input type="checkbox"> Morning Prayer</label>
-    <label><input type="checkbox"> Meditation</label>
-    <label><input type="checkbox"> Exercise</label>
-    <label><input type="checkbox"> Shower & Skin Care (AM)</label>
-    <label><input type="checkbox"> Breakfast</label>
-    <label><input type="checkbox"> Lunch</label>
-    <label><input type="checkbox"> Dinner</label>
-    <label><input type="checkbox"> Shower & Skin Care (PM)</label>
-    <label><input type="checkbox"> Journal</label>
-    <label><input type="checkbox"> Evening Prayer</label>
-  </div>
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Schedule Section -->
+            <div class="lg:col-span-2">
+                <h2 class="text-2xl font-bold text-gray-800 mb-4">Daily Schedule</h2>
+                <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead class="bg-gradient-to-r from-gray-700 to-gray-800 text-white">
+                                <tr>
+                                    <th class="px-6 py-4 text-left font-semibold">TIME</th>
+                                    <th class="px-6 py-4 text-left font-semibold">DURATION</th>
+                                    <th class="px-6 py-4 text-left font-semibold">ACTIVITY</th>
+                                    <th class="px-6 py-4 text-center font-semibold">TIMER</th>
+                                    <th class="px-6 py-4 text-center font-semibold">DONE</th>
+                                </tr>
+                            </thead>
+                            <tbody id="scheduleBody">
+                                <!-- Schedule items will be populated by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
 
-  <div class="section">
-    <h2>Study Hours</h2>
-    <label>Morning Study (7AM - 12PM): <input type="number" min="0" max="5"> hrs</label>
-    <label>Afternoon Study (1PM - 5PM): <input type="number" min="0" max="4"> hrs</label>
-    <label>Evening Study (6PM - 8:30PM): <input type="number" min="0" max="2.5" step="0.5"> hrs</label>
-  </div>
+                <!-- Reset Button -->
+                <div class="text-center mt-6">
+                    <button onclick="resetAllTasks()" class="bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white px-6 py-3 rounded-lg font-semibold transition-all duration-200 transform hover:scale-105">
+                        Reset All Tasks
+                    </button>
+                </div>
+            </div>
 
-  <div class="section">
-    <h2>Sleep Tracker</h2>
-    <label>Sleep Start Time: <input type="time" id="sleepStart"></label>
-    <label>Wake Time: <input type="time" id="wakeTime"></label>
-    <p>Total Sleep Hours: <span id="sleepHours">0</span></p>
-  </div>
+            <!-- To-Do List Section -->
+            <div class="lg:col-span-1">
+                <div class="bg-white rounded-xl shadow-lg p-6 sticky top-8">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-2xl font-bold text-gray-800">To-Do List</h2>
+                        <button onclick="addNewTodo()" class="bg-gray-600 hover:bg-gray-700 text-white px-3 py-1 rounded-lg text-sm font-medium transition-colors">
+                            + Add Task
+                        </button>
+                    </div>
 
-  <div class="section">
-    <h2>Mood & Focus</h2>
-    <label>Mood:
-      <select>
-        <option>😊 Happy</option>
-        <option>😐 Meh</option>
-        <option>😞 Low</option>
-      </select>
-    </label>
-    <label>Focus Level:
-      <select>
-        <option>🔥 Focused</option>
-        <option>😶 Scattered</option>
-        <option>😴 Drained</option>
-      </select>
-    </label>
-  </div>
+                    <!-- Add New Todo Form -->
+                    <div id="addTodoForm" class="mb-6 p-4 bg-gray-50 rounded-lg" style="display: none;">
+                        <input type="text" id="newTodoText" placeholder="Enter task..." class="w-full p-2 border border-gray-300 rounded-lg mb-3 focus:ring-2 focus:ring-gray-500 focus:border-transparent">
+                        <input type="date" id="newTodoDeadline" class="w-full p-2 border border-gray-300 rounded-lg mb-3 focus:ring-2 focus:ring-gray-500 focus:border-transparent">
+                        <div class="flex gap-2">
+                            <button onclick="saveTodo()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex-1">
+                                Save
+                            </button>
+                            <button onclick="cancelTodo()" class="bg-gray-400 hover:bg-gray-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex-1">
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
 
-  <div class="section">
-    <h2>Progress</h2>
-    <label>Thesis Progress: <input type="number" min="0" max="100" id="thesis">% </label>
-    <div class="progress-bar"><div id="thesisBar" class="progress-fill" style="width: 0%">0%</div></div>
+                    <!-- Todo Items -->
+                    <div id="todoList" class="space-y-3 max-h-96 overflow-y-auto">
+                        <!-- Todo items will be populated by JavaScript -->
+                    </div>
 
-    <label>Board Review Progress: <input type="number" min="0" max="100" id="board">% </label>
-    <div class="progress-bar"><div id="boardBar" class="progress-fill" style="width: 0%">0%</div></div>
-  </div>
+                    <!-- Clear Completed Button -->
+                    <div class="mt-6 pt-4 border-t border-gray-200">
+                        <button onclick="clearCompleted()" class="w-full bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                            Clear Completed
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
-  <div class="section">
-    <h2>Reflection</h2>
-    <label>What went well?<textarea rows="2"></textarea></label>
-    <label>What held you back?<textarea rows="2"></textarea></label>
-    <label>Small win of the day:<textarea rows="2"></textarea></label>
-  </div>
+    <!-- Popup Container -->
+    <div id="popupOverlay" class="popup-overlay" style="display: none;">
+        <div class="popup-content">
+            <h2 id="popupTitle" class="text-2xl font-bold text-gray-800 mb-4"></h2>
+            <p id="popupMessage" class="text-gray-600 mb-6"></p>
+            <button onclick="closePopup()" class="bg-gray-600 hover:bg-gray-700 text-white px-6 py-2 rounded-lg font-medium transition-colors">
+                Close
+            </button>
+        </div>
+    </div>
 
-  <script>
-    const sleepStart = document.getElementById('sleepStart');
-    const wakeTime = document.getElementById('wakeTime');
-    const sleepHours = document.getElementById('sleepHours');
+    <script>
+        const schedule = [
+            { time: '5:00 AM', duration: '5 mins', activity: 'PRAY', id: 1 },
+            { time: '5:05 AM', duration: '10 mins', activity: 'MEDITATE', id: 2 },
+            { time: '5:15 AM', duration: '1 hr', activity: 'EXERCISE', id: 3 },
+            { time: '6:15 AM', duration: '15 mins', activity: 'SHOWER', id: 4 },
+            { time: '6:30 AM', duration: '15 mins', activity: 'SKIN CARE', id: 5 },
+            { time: '6:45 AM', duration: '15 mins', activity: 'BREAKFAST', id: 6 },
+            { time: '7:00 AM', duration: '5 hrs', activity: 'STUDY', id: 7 },
+            { time: '12:00 PM', duration: '1 hr', activity: 'LUNCH', id: 8 },
+            { time: '1:00 PM', duration: '4 hrs', activity: 'STUDY', id: 9 },
+            { time: '5:00 PM', duration: '1 hr', activity: 'DINNER', id: 10 },
+            { time: '6:00 PM', duration: '2.5 hrs', activity: 'STUDY', id: 11 },
+            { time: '8:30 PM', duration: '15 mins', activity: 'SKIN CARE', id: 12 },
+            { time: '8:45 PM', duration: '10 mins', activity: 'JOURNAL', id: 13 },
+            { time: '8:55 PM', duration: '5 mins', activity: 'PRAY', id: 14 },
+            { time: '9:00 PM', duration: '8 hrs', activity: 'SLEEP', id: 15 }
+        ];
 
-    function calculateSleep() {
-      const start = sleepStart.value;
-      const end = wakeTime.value;
-      if (start && end) {
-        const [sh, sm] = start.split(":").map(Number);
-        const [wh, wm] = end.split(":").map(Number);
-        let startMins = sh * 60 + sm;
-        let endMins = wh * 60 + wm;
-        if (endMins <= startMins) endMins += 1440;
-        const diff = endMins - startMins;
-        sleepHours.textContent = (diff / 60).toFixed(1);
-      }
-    }
+        let taskStates = {};
+        let timers = {};
+        let todos = [
+            { 
+                id: 1, 
+                text: "Review study notes", 
+                deadline: "2024-01-15", 
+                completed: false,
+                subtasks: [
+                    { id: 1, text: "Read chapter 5", completed: false },
+                    { id: 2, text: "Make flashcards", completed: false },
+                    { id: 3, text: "Practice problems", completed: false }
+                ]
+            },
+            { 
+                id: 2, 
+                text: "Buy groceries", 
+                deadline: "2024-01-14", 
+                completed: false,
+                subtasks: [
+                    { id: 1, text: "Make shopping list", completed: true },
+                    { id: 2, text: "Go to store", completed: false },
+                    { id: 3, text: "Put away items", completed: false }
+                ]
+            },
+            { 
+                id: 3, 
+                text: "Call dentist", 
+                deadline: "2024-01-16", 
+                completed: true,
+                subtasks: [
+                    { id: 1, text: "Find phone number", completed: true },
+                    { id: 2, text: "Schedule appointment", completed: true }
+                ]
+            }
+        ];
+        let expandedTodos = {};
+        let todoIdCounter = 4;
 
-    sleepStart.addEventListener('change', calculateSleep);
-    wakeTime.addEventListener('change', calculateSleep);
+        function parseDuration(duration) {
+            const parts = duration.toLowerCase().split(' ');
+            const value = parseFloat(parts[0]);
+            const unit = parts[1];
+            
+            if (unit.includes('min')) {
+                return value * 60; // Convert to seconds
+            } else if (unit.includes('hr')) {
+                return value * 3600; // Convert to seconds
+            }
+            return 0;
+        }
 
-    const thesisInput = document.getElementById('thesis');
-    const thesisBar = document.getElementById('thesisBar');
-    thesisInput.addEventListener('input', () => {
-      const value = thesisInput.value;
-      thesisBar.style.width = value + "%";
-      thesisBar.textContent = value + "%";
-    });
+        function formatTime(seconds) {
+            if (seconds <= 0) return "00:00";
+            
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            const secs = seconds % 60;
+            
+            if (hours > 0) {
+                return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+            } else {
+                return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+            }
+        }
 
-    const boardInput = document.getElementById('board');
-    const boardBar = document.getElementById('boardBar');
-    boardInput.addEventListener('input', () => {
-      const value = boardInput.value;
-      boardBar.style.width = value + "%";
-      boardBar.textContent = value + "%";
-    });
-  </script>
-</body>
+        function startTimer(taskId) {
+            const task = schedule.find(t => t.id === taskId);
+            if (!task) return;
+
+            const duration = parseDuration(task.duration);
+            let timeLeft = duration;
+            const totalDuration = duration;
+
+            const timerContainer = document.getElementById(`timer-${taskId}`);
+            const progressCircle = timerContainer.querySelector('.timer-progress');
+            const timerText = timerContainer.querySelector('.timer-text');
+            const circumference = 2 * Math.PI * 35; // radius is 35
+
+            progressCircle.style.strokeDasharray = circumference;
+            progressCircle.style.strokeDashoffset = 0;
+            timerContainer.classList.add('timer-active');
+
+            timers[taskId] = setInterval(() => {
+                timeLeft--;
+                const progress = (timeLeft / totalDuration) * circumference;
+                progressCircle.style.strokeDashoffset = circumference - progress;
+                timerText.textContent = formatTime(timeLeft);
+
+                if (timeLeft <= 0) {
+                    clearInterval(timers[taskId]);
+                    timerContainer.classList.remove('timer-active');
+                    timerContainer.classList.add('timer-expired');
+                    timerText.textContent = "TIME'S UP!";
+                    
+                    // Show popup notification
+                    showPopup(task.activity, `Time's up for ${task.activity}! Ready for your next task?`);
+                }
+            }, 1000);
+        }
+
+        function stopTimer(taskId) {
+            if (timers[taskId]) {
+                clearInterval(timers[taskId]);
+                delete timers[taskId];
+            }
+            
+            const timerContainer = document.getElementById(`timer-${taskId}`);
+            const progressCircle = timerContainer.querySelector('.timer-progress');
+            const timerText = timerContainer.querySelector('.timer-text');
+            const task = schedule.find(t => t.id === taskId);
+            
+            timerContainer.classList.remove('timer-active', 'timer-expired');
+            progressCircle.style.strokeDashoffset = 0;
+            timerText.textContent = task.duration;
+        }
+
+        function toggleTask(taskId) {
+            const checkbox = document.getElementById(`check-${taskId}`);
+            const rowElement = document.getElementById(`row-${taskId}`);
+            const timerButton = document.getElementById(`timer-btn-${taskId}`);
+            
+            taskStates[taskId] = checkbox.checked;
+            
+            if (checkbox.checked) {
+                rowElement.classList.add('completed');
+                stopTimer(taskId);
+                timerButton.textContent = 'Start Timer';
+                timerButton.disabled = true;
+                timerButton.classList.add('opacity-50', 'cursor-not-allowed');
+            } else {
+                rowElement.classList.remove('completed');
+                timerButton.disabled = false;
+                timerButton.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+        }
+
+        // Todo subtask functions
+        function toggleTodoSubtask(todoId, subtaskId) {
+            const todo = todos.find(t => t.id === todoId);
+            if (todo && todo.subtasks) {
+                const subtask = todo.subtasks.find(st => st.id === subtaskId);
+                if (subtask) {
+                    subtask.completed = !subtask.completed;
+                    updateTodoProgress(todoId);
+                    renderTodos();
+                }
+            }
+        }
+
+        function addTodoSubtask(todoId) {
+            const input = document.getElementById(`todo-subtask-input-${todoId}`);
+            const text = input.value.trim();
+            
+            if (!text) return;
+            
+            const todo = todos.find(t => t.id === todoId);
+            if (todo) {
+                if (!todo.subtasks) {
+                    todo.subtasks = [];
+                }
+                
+                const maxId = todo.subtasks.length > 0 ? Math.max(...todo.subtasks.map(st => st.id)) : 0;
+                todo.subtasks.push({
+                    id: maxId + 1,
+                    text: text,
+                    completed: false
+                });
+                
+                input.value = '';
+                updateTodoProgress(todoId);
+                renderTodos();
+            }
+        }
+
+        function deleteTodoSubtask(todoId, subtaskId) {
+            const todo = todos.find(t => t.id === todoId);
+            if (todo && todo.subtasks) {
+                todo.subtasks = todo.subtasks.filter(st => st.id !== subtaskId);
+                updateTodoProgress(todoId);
+                renderTodos();
+            }
+        }
+
+        function toggleTodoExpansion(todoId) {
+            expandedTodos[todoId] = !expandedTodos[todoId];
+            renderTodos();
+        }
+
+        function updateTodoProgress(todoId) {
+            const todo = todos.find(t => t.id === todoId);
+            if (!todo || !todo.subtasks || todo.subtasks.length === 0) {
+                return;
+            }
+            
+            const completed = todo.subtasks.filter(st => st.completed).length;
+            const total = todo.subtasks.length;
+            const percentage = Math.round((completed / total) * 100);
+            
+            // Update main todo completion if all subtasks are done
+            if (percentage === 100 && !todo.completed) {
+                todo.completed = true;
+            } else if (percentage < 100 && todo.completed) {
+                todo.completed = false;
+            }
+        }
+
+        function toggleTimer(taskId) {
+            const timerButton = document.getElementById(`timer-btn-${taskId}`);
+            
+            if (timers[taskId]) {
+                stopTimer(taskId);
+                timerButton.textContent = 'Start Timer';
+            } else {
+                startTimer(taskId);
+                timerButton.textContent = 'Stop Timer';
+            }
+        }
+
+        function resetAllTasks() {
+            if (confirm('Are you sure you want to reset all tasks and timers?')) {
+                // Clear all timers
+                Object.keys(timers).forEach(taskId => {
+                    stopTimer(parseInt(taskId));
+                });
+                
+                // Reset all checkboxes and states
+                schedule.forEach(task => {
+                    const checkbox = document.getElementById(`check-${task.id}`);
+                    const rowElement = document.getElementById(`row-${task.id}`);
+                    const timerButton = document.getElementById(`timer-btn-${task.id}`);
+                    
+                    checkbox.checked = false;
+                    taskStates[task.id] = false;
+                    rowElement.classList.remove('completed');
+                    timerButton.disabled = false;
+                    timerButton.classList.remove('opacity-50', 'cursor-not-allowed');
+                    timerButton.textContent = 'Start Timer';
+                });
+            }
+        }
+
+        function parseTimeToMinutes(timeStr) {
+            const [time, period] = timeStr.split(' ');
+            const [hours, minutes] = time.split(':').map(Number);
+            let totalMinutes = hours * 60 + minutes;
+            
+            if (period === 'PM' && hours !== 12) {
+                totalMinutes += 12 * 60;
+            } else if (period === 'AM' && hours === 12) {
+                totalMinutes = minutes;
+            }
+            
+            return totalMinutes;
+        }
+
+        function getCurrentTask() {
+            const now = new Date();
+            const currentMinutes = now.getHours() * 60 + now.getMinutes();
+            
+            for (let i = 0; i < schedule.length; i++) {
+                const taskStartMinutes = parseTimeToMinutes(schedule[i].time);
+                const nextTaskStartMinutes = i < schedule.length - 1 ? 
+                    parseTimeToMinutes(schedule[i + 1].time) : 
+                    24 * 60; // End of day
+                
+                if (currentMinutes >= taskStartMinutes && currentMinutes < nextTaskStartMinutes) {
+                    return schedule[i];
+                }
+            }
+            
+            return null;
+        }
+
+        function highlightCurrentTask() {
+            // Remove previous highlighting
+            schedule.forEach(task => {
+                const rowElement = document.getElementById(`row-${task.id}`);
+                rowElement.classList.remove('current-task');
+            });
+            
+            // Highlight current task
+            const currentTask = getCurrentTask();
+            if (currentTask && !taskStates[currentTask.id]) {
+                const rowElement = document.getElementById(`row-${currentTask.id}`);
+                rowElement.classList.add('current-task');
+            }
+        }
+
+        function showPopup(title, message) {
+            document.getElementById('popupTitle').textContent = title;
+            document.getElementById('popupMessage').textContent = message;
+            document.getElementById('popupOverlay').style.display = 'flex';
+        }
+
+        function closePopup() {
+            document.getElementById('popupOverlay').style.display = 'none';
+        }
+
+        function showTaskPopup(taskId) {
+            const task = schedule.find(t => t.id === taskId);
+            if (task) {
+                showPopup(task.activity, `Time: ${task.time}\nDuration: ${task.duration}\n\nClick Start Timer when you're ready to begin this task!`);
+            }
+        }
+
+        function updateCurrentTime() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('en-US', { 
+                hour12: true, 
+                hour: 'numeric', 
+                minute: '2-digit',
+                second: '2-digit'
+            });
+            
+            const currentTask = getCurrentTask();
+            const currentTaskText = currentTask ? ` | Current Task: ${currentTask.activity}` : '';
+            
+            document.getElementById('currentTime').textContent = `Current Time: ${timeString}${currentTaskText}`;
+            
+            // Update highlighting
+            highlightCurrentTask();
+        }
+
+        function renderSchedule() {
+            const tbody = document.getElementById('scheduleBody');
+            tbody.innerHTML = '';
+
+            schedule.forEach((task, index) => {
+                const row = document.createElement('tr');
+                row.id = `row-${task.id}`;
+                row.className = `border-b border-gray-200 hover:bg-gray-25 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-gray-25'}`;
+                
+                row.innerHTML = `
+                    <td class="px-6 py-4 font-semibold text-gray-700">${task.time}</td>
+                    <td class="px-6 py-4 text-gray-600">${task.duration}</td>
+                    <td class="px-6 py-4">
+                        <span class="task-text font-medium text-gray-800 cursor-pointer hover:text-gray-600" onclick="showTaskPopup(${task.id})">${task.activity}</span>
+                    </td>
+                    <td class="px-6 py-4 text-center">
+                        <div class="flex flex-col items-center gap-2">
+                            <div id="timer-${task.id}" class="circular-timer">
+                                <svg>
+                                    <circle class="timer-bg" cx="40" cy="40" r="35"></circle>
+                                    <circle class="timer-progress" cx="40" cy="40" r="35"></circle>
+                                </svg>
+                                <div class="timer-text">${task.duration}</div>
+                            </div>
+                            <button id="timer-btn-${task.id}" onclick="toggleTimer(${task.id})" class="bg-gray-600 hover:bg-gray-700 text-white px-3 py-1 rounded text-xs font-medium transition-colors">
+                                Start Timer
+                            </button>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 text-center">
+                        <input type="checkbox" id="check-${task.id}" onchange="toggleTask(${task.id})" class="w-5 h-5 text-gray-600 bg-gray-50 border-gray-300 rounded focus:ring-gray-500 focus:ring-2 cursor-pointer">
+                    </td>
+                `;
+                
+                tbody.appendChild(row);
+                taskStates[task.id] = false;
+            });
+        }
+
+        // Todo List Functions
+        function addNewTodo() {
+            document.getElementById('addTodoForm').style.display = 'block';
+            document.getElementById('newTodoText').focus();
+        }
+
+        function cancelTodo() {
+            document.getElementById('addTodoForm').style.display = 'none';
+            document.getElementById('newTodoText').value = '';
+            document.getElementById('newTodoDeadline').value = '';
+        }
+
+        function saveTodo() {
+            const text = document.getElementById('newTodoText').value.trim();
+            const deadline = document.getElementById('newTodoDeadline').value;
+            
+            if (!text) {
+                alert('Please enter a task description');
+                return;
+            }
+            
+            todos.push({
+                id: todoIdCounter++,
+                text: text,
+                deadline: deadline || null,
+                completed: false,
+                subtasks: []
+            });
+            
+            renderTodos();
+            cancelTodo();
+        }
+
+        function toggleTodo(todoId) {
+            const todo = todos.find(t => t.id === todoId);
+            if (todo) {
+                todo.completed = !todo.completed;
+                // If marking as complete, mark all subtasks as complete
+                if (todo.completed && todo.subtasks) {
+                    todo.subtasks.forEach(subtask => subtask.completed = true);
+                }
+                // If marking as incomplete, mark all subtasks as incomplete
+                if (!todo.completed && todo.subtasks) {
+                    todo.subtasks.forEach(subtask => subtask.completed = false);
+                }
+                renderTodos();
+            }
+        }
+
+        function deleteTodo(todoId) {
+            if (confirm('Are you sure you want to delete this task?')) {
+                todos = todos.filter(t => t.id !== todoId);
+                renderTodos();
+            }
+        }
+
+        function clearCompleted() {
+            const completedCount = todos.filter(t => t.completed).length;
+            if (completedCount === 0) {
+                alert('No completed tasks to clear');
+                return;
+            }
+            
+            if (confirm(`Are you sure you want to delete ${completedCount} completed task(s)?`)) {
+                todos = todos.filter(t => !t.completed);
+                renderTodos();
+            }
+        }
+
+        function formatDeadline(deadline) {
+            if (!deadline) return '';
+            
+            const today = new Date();
+            const deadlineDate = new Date(deadline);
+            const diffTime = deadlineDate - today;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            
+            if (diffDays < 0) {
+                return `<span class="text-red-600 font-semibold">Overdue</span>`;
+            } else if (diffDays === 0) {
+                return `<span class="text-orange-600 font-semibold">Due Today</span>`;
+            } else if (diffDays === 1) {
+                return `<span class="text-yellow-600 font-semibold">Due Tomorrow</span>`;
+            } else if (diffDays <= 3) {
+                return `<span class="text-blue-600 font-semibold">Due in ${diffDays} days</span>`;
+            } else {
+                return `<span class="text-gray-600">Due ${deadlineDate.toLocaleDateString()}</span>`;
+            }
+        }
+
+        function renderTodos() {
+            const todoList = document.getElementById('todoList');
+            
+            if (todos.length === 0) {
+                todoList.innerHTML = '<p class="text-gray-500 text-center py-8">No tasks yet. Click "Add Task" to get started!</p>';
+                return;
+            }
+            
+            // Sort todos: incomplete first, then by deadline
+            const sortedTodos = [...todos].sort((a, b) => {
+                if (a.completed !== b.completed) {
+                    return a.completed - b.completed;
+                }
+                if (a.deadline && b.deadline) {
+                    return new Date(a.deadline) - new Date(b.deadline);
+                }
+                if (a.deadline && !b.deadline) return -1;
+                if (!a.deadline && b.deadline) return 1;
+                return 0;
+            });
+            
+            todoList.innerHTML = sortedTodos.map(todo => {
+                const hasSubtasks = todo.subtasks && todo.subtasks.length > 0;
+                const completedSubtasks = hasSubtasks ? todo.subtasks.filter(st => st.completed).length : 0;
+                const totalSubtasks = hasSubtasks ? todo.subtasks.length : 0;
+                const progressPercentage = hasSubtasks ? Math.round((completedSubtasks / totalSubtasks) * 100) : 0;
+                const isExpanded = expandedTodos[todo.id];
+                
+                return `
+                    <div class="border border-gray-200 rounded-lg ${todo.completed ? 'bg-gray-50 opacity-75' : 'bg-white'} hover:shadow-sm transition-shadow">
+                        <div class="flex items-start gap-3 p-3">
+                            <input type="checkbox" ${todo.completed ? 'checked' : ''} 
+                                   onchange="toggleTodo(${todo.id})" 
+                                   class="w-5 h-5 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500 focus:ring-2 cursor-pointer mt-0.5">
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center gap-2">
+                                    ${hasSubtasks ? `<button onclick="toggleTodoExpansion(${todo.id})" class="text-gray-500 hover:text-gray-700 text-sm font-bold">${isExpanded ? '▼' : '▶'}</button>` : ''}
+                                    <p class="text-sm font-medium text-gray-800 ${todo.completed ? 'line-through text-gray-500' : ''}">${todo.text}</p>
+                                </div>
+                                ${todo.deadline ? `<p class="text-xs mt-1 ${hasSubtasks ? 'ml-6' : ''}">${formatDeadline(todo.deadline)}</p>` : ''}
+                                ${hasSubtasks ? `
+                                    <div class="mt-2 ${hasSubtasks ? 'ml-6' : ''}">
+                                        <div class="flex items-center gap-2 text-xs">
+                                            <div class="flex-1 bg-gray-200 rounded-full h-2">
+                                                <div class="bg-green-500 h-2 rounded-full transition-all duration-300" style="width: ${progressPercentage}%"></div>
+                                            </div>
+                                            <span class="text-gray-600 font-medium">${progressPercentage}%</span>
+                                        </div>
+                                    </div>
+                                ` : ''}
+                            </div>
+                            <button onclick="deleteTodo(${todo.id})" 
+                                    class="text-red-500 hover:text-red-700 text-sm font-medium transition-colors">
+                                ✕
+                            </button>
+                        </div>
+                        
+                        ${isExpanded ? `
+                            <div class="px-3 pb-3">
+                                <div class="ml-8 space-y-2">
+                                    ${hasSubtasks ? todo.subtasks.map(subtask => `
+                                        <div class="flex items-center gap-2 p-2 bg-gray-50 rounded">
+                                            <input type="checkbox" ${subtask.completed ? 'checked' : ''} 
+                                                   onchange="toggleTodoSubtask(${todo.id}, ${subtask.id})" 
+                                                   class="w-4 h-4 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500 focus:ring-2">
+                                            <span class="flex-1 text-sm ${subtask.completed ? 'line-through text-gray-500' : 'text-gray-700'}">${subtask.text}</span>
+                                            <button onclick="deleteTodoSubtask(${todo.id}, ${subtask.id})" 
+                                                    class="text-red-500 hover:text-red-700 text-xs">✕</button>
+                                        </div>
+                                    `).join('') : ''}
+                                    <div class="flex gap-2 mt-3">
+                                        <input type="text" id="todo-subtask-input-${todo.id}" placeholder="Add subtask..." 
+                                               class="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-gray-500 focus:border-transparent"
+                                               onkeypress="if(event.key==='Enter') addTodoSubtask(${todo.id})">
+                                        <button onclick="addTodoSubtask(${todo.id})" 
+                                                class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs font-medium transition-colors">
+                                            Add
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Initialize the schedule and todos
+        renderSchedule();
+        renderTodos();
+        updateCurrentTime();
+        setInterval(updateCurrentTime, 1000);
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'96568d13008bbc52',t:'MTc1MzU2MDczOC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
-
