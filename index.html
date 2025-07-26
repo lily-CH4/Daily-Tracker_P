@@ -104,6 +104,62 @@
             from { transform: translateY(-20px); opacity: 0; }
             to { transform: translateY(0); opacity: 1; }
         }
+        
+        /* Main Timer Styles */
+        .main-circular-timer {
+            position: relative;
+            width: 200px;
+            height: 200px;
+        }
+        .main-circular-timer svg {
+            transform: rotate(-90deg);
+            width: 100%;
+            height: 100%;
+        }
+        .main-circular-timer .main-timer-bg {
+            fill: none;
+            stroke: #e5e7eb;
+            stroke-width: 8;
+        }
+        .main-circular-timer .main-timer-progress {
+            fill: none;
+            stroke: #10b981;
+            stroke-width: 8;
+            stroke-linecap: round;
+            transition: stroke-dasharray 1s ease;
+        }
+        .main-timer-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            width: 160px;
+        }
+        .main-timer-time {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #1f2937;
+            line-height: 1;
+        }
+        .main-timer-activity {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #6b7280;
+            margin-top: 0.25rem;
+            line-height: 1.2;
+        }
+        .main-timer-schedule {
+            font-size: 0.75rem;
+            color: #9ca3af;
+            margin-top: 0.125rem;
+        }
+        .main-timer-active .main-timer-progress {
+            stroke: #10b981;
+        }
+        .main-timer-expired .main-timer-progress {
+            stroke: #ef4444;
+        }
     </style>
 </head>
 <body class="bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
@@ -112,7 +168,29 @@
         <div class="text-center mb-8">
             <h1 class="text-4xl font-bold text-gray-800 mb-2">Daily Schedule & Tasks</h1>
             <p class="text-gray-600">Stay on track with countdown timers and manage your to-do list</p>
-            <div id="currentTime" class="text-lg font-semibold text-gray-700 mt-2"></div>
+            
+            <!-- Big Central Timer -->
+            <div class="mt-6 flex flex-col items-center">
+                <div id="mainTimer" class="main-circular-timer mb-4">
+                    <svg width="200" height="200">
+                        <circle class="main-timer-bg" cx="100" cy="100" r="90"></circle>
+                        <circle class="main-timer-progress" cx="100" cy="100" r="90"></circle>
+                    </svg>
+                    <div class="main-timer-content">
+                        <div id="mainTimerText" class="main-timer-time">--:--</div>
+                        <div id="mainTimerActivity" class="main-timer-activity">No Active Task</div>
+                        <div id="mainTimerSchedule" class="main-timer-schedule"></div>
+                    </div>
+                </div>
+                <div class="flex gap-3">
+                    <button id="mainTimerBtn" onclick="toggleMainTimer()" class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                        Start Timer
+                    </button>
+                    <button onclick="skipToNextTask()" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors">
+                        Skip to Next
+                    </button>
+                </div>
+            </div>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -127,7 +205,7 @@
                                     <th class="px-6 py-4 text-left font-semibold">TIME</th>
                                     <th class="px-6 py-4 text-left font-semibold">DURATION</th>
                                     <th class="px-6 py-4 text-left font-semibold">ACTIVITY</th>
-                                    <th class="px-6 py-4 text-center font-semibold">TIMER</th>
+                                    <th class="px-6 py-4 text-center font-semibold">PROGRESS</th>
                                     <th class="px-6 py-4 text-center font-semibold">DONE</th>
                                 </tr>
                             </thead>
@@ -218,6 +296,8 @@
 
         let taskStates = {};
         let timers = {};
+        let mainTimer = null;
+        let currentActiveTask = null;
         let todos = [
             { 
                 id: 1, 
@@ -249,6 +329,7 @@
                     { id: 4, text: "Chapter 4", completed: false },
                     { id: 5, text: "Whole Paper", completed: false }
                 ]
+
             }
         ];
         let expandedTodos = {};
@@ -281,74 +362,26 @@
             }
         }
 
-        function startTimer(taskId) {
-            const task = schedule.find(t => t.id === taskId);
-            if (!task) return;
 
-            const duration = parseDuration(task.duration);
-            let timeLeft = duration;
-            const totalDuration = duration;
-
-            const timerContainer = document.getElementById(`timer-${taskId}`);
-            const progressCircle = timerContainer.querySelector('.timer-progress');
-            const timerText = timerContainer.querySelector('.timer-text');
-            const circumference = 2 * Math.PI * 35; // radius is 35
-
-            progressCircle.style.strokeDasharray = circumference;
-            progressCircle.style.strokeDashoffset = 0;
-            timerContainer.classList.add('timer-active');
-
-            timers[taskId] = setInterval(() => {
-                timeLeft--;
-                const progress = (timeLeft / totalDuration) * circumference;
-                progressCircle.style.strokeDashoffset = circumference - progress;
-                timerText.textContent = formatTime(timeLeft);
-
-                if (timeLeft <= 0) {
-                    clearInterval(timers[taskId]);
-                    timerContainer.classList.remove('timer-active');
-                    timerContainer.classList.add('timer-expired');
-                    timerText.textContent = "TIME'S UP!";
-                    
-                    // Show popup notification
-                    showPopup(task.activity, `Time's up for ${task.activity}! Ready for your next task?`);
-                }
-            }, 1000);
-        }
-
-        function stopTimer(taskId) {
-            if (timers[taskId]) {
-                clearInterval(timers[taskId]);
-                delete timers[taskId];
-            }
-            
-            const timerContainer = document.getElementById(`timer-${taskId}`);
-            const progressCircle = timerContainer.querySelector('.timer-progress');
-            const timerText = timerContainer.querySelector('.timer-text');
-            const task = schedule.find(t => t.id === taskId);
-            
-            timerContainer.classList.remove('timer-active', 'timer-expired');
-            progressCircle.style.strokeDashoffset = 0;
-            timerText.textContent = task.duration;
-        }
 
         function toggleTask(taskId) {
             const checkbox = document.getElementById(`check-${taskId}`);
             const rowElement = document.getElementById(`row-${taskId}`);
-            const timerButton = document.getElementById(`timer-btn-${taskId}`);
             
             taskStates[taskId] = checkbox.checked;
             
             if (checkbox.checked) {
                 rowElement.classList.add('completed');
-                stopTimer(taskId);
-                timerButton.textContent = 'Start Timer';
-                timerButton.disabled = true;
-                timerButton.classList.add('opacity-50', 'cursor-not-allowed');
+                updateScheduleProgress(taskId, 100);
+                
+                // If this was the active task, stop the main timer
+                if (currentActiveTask && currentActiveTask.id === taskId) {
+                    stopMainTimer();
+                    skipToNextTask();
+                }
             } else {
                 rowElement.classList.remove('completed');
-                timerButton.disabled = false;
-                timerButton.classList.remove('opacity-50', 'cursor-not-allowed');
+                updateScheduleProgress(taskId, 0);
             }
         }
 
@@ -422,38 +455,27 @@
             }
         }
 
-        function toggleTimer(taskId) {
-            const timerButton = document.getElementById(`timer-btn-${taskId}`);
-            
-            if (timers[taskId]) {
-                stopTimer(taskId);
-                timerButton.textContent = 'Start Timer';
-            } else {
-                startTimer(taskId);
-                timerButton.textContent = 'Stop Timer';
-            }
-        }
+
 
         function resetAllTasks() {
             if (confirm('Are you sure you want to reset all tasks and timers?')) {
-                // Clear all timers
-                Object.keys(timers).forEach(taskId => {
-                    stopTimer(parseInt(taskId));
-                });
+                // Stop main timer
+                stopMainTimer();
                 
                 // Reset all checkboxes and states
                 schedule.forEach(task => {
                     const checkbox = document.getElementById(`check-${task.id}`);
                     const rowElement = document.getElementById(`row-${task.id}`);
-                    const timerButton = document.getElementById(`timer-btn-${task.id}`);
                     
                     checkbox.checked = false;
                     taskStates[task.id] = false;
                     rowElement.classList.remove('completed');
-                    timerButton.disabled = false;
-                    timerButton.classList.remove('opacity-50', 'cursor-not-allowed');
-                    timerButton.textContent = 'Start Timer';
+                    updateScheduleProgress(task.id, 0);
                 });
+                
+                // Update main timer display
+                const firstTask = schedule[0];
+                updateMainTimerDisplay(firstTask);
             }
         }
 
@@ -521,22 +543,151 @@
             }
         }
 
+        function startMainTimer(taskId) {
+            const task = schedule.find(t => t.id === taskId);
+            if (!task) return;
+
+            currentActiveTask = task;
+            const duration = parseDuration(task.duration);
+            let timeLeft = duration;
+            const totalDuration = duration;
+
+            const timerContainer = document.getElementById('mainTimer');
+            const progressCircle = timerContainer.querySelector('.main-timer-progress');
+            const timerText = document.getElementById('mainTimerText');
+            const activityText = document.getElementById('mainTimerActivity');
+            const scheduleText = document.getElementById('mainTimerSchedule');
+            const mainTimerBtn = document.getElementById('mainTimerBtn');
+            
+            const circumference = 2 * Math.PI * 90; // radius is 90
+
+            progressCircle.style.strokeDasharray = circumference;
+            progressCircle.style.strokeDashoffset = 0;
+            timerContainer.classList.add('main-timer-active');
+            
+            activityText.textContent = task.activity;
+            scheduleText.textContent = `${task.time} • ${task.duration}`;
+            mainTimerBtn.textContent = 'Stop Timer';
+
+            mainTimer = setInterval(() => {
+                timeLeft--;
+                const progress = (timeLeft / totalDuration) * circumference;
+                progressCircle.style.strokeDashoffset = circumference - progress;
+                timerText.textContent = formatTime(timeLeft);
+                
+                // Update schedule progress bar
+                const scheduleProgress = ((totalDuration - timeLeft) / totalDuration) * 100;
+                updateScheduleProgress(taskId, scheduleProgress);
+
+                if (timeLeft <= 0) {
+                    clearInterval(mainTimer);
+                    mainTimer = null;
+                    timerContainer.classList.remove('main-timer-active');
+                    timerContainer.classList.add('main-timer-expired');
+                    timerText.textContent = "TIME'S UP!";
+                    mainTimerBtn.textContent = 'Start Timer';
+                    
+                    // Mark task as completed
+                    const checkbox = document.getElementById(`check-${taskId}`);
+                    checkbox.checked = true;
+                    toggleTask(taskId);
+                    
+                    // Show popup and move to next task
+                    showPopup(task.activity, `Time's up for ${task.activity}! Moving to next task...`);
+                    setTimeout(() => {
+                        closePopup();
+                        skipToNextTask();
+                    }, 3000);
+                }
+            }, 1000);
+        }
+
+        function stopMainTimer() {
+            if (mainTimer) {
+                clearInterval(mainTimer);
+                mainTimer = null;
+            }
+            
+            const timerContainer = document.getElementById('mainTimer');
+            const progressCircle = timerContainer.querySelector('.main-timer-progress');
+            const timerText = document.getElementById('mainTimerText');
+            const activityText = document.getElementById('mainTimerActivity');
+            const scheduleText = document.getElementById('mainTimerSchedule');
+            const mainTimerBtn = document.getElementById('mainTimerBtn');
+            
+            timerContainer.classList.remove('main-timer-active', 'main-timer-expired');
+            progressCircle.style.strokeDashoffset = 0;
+            timerText.textContent = '--:--';
+            activityText.textContent = 'No Active Task';
+            scheduleText.textContent = '';
+            mainTimerBtn.textContent = 'Start Timer';
+            mainTimerBtn.disabled = true;
+            
+            if (currentActiveTask) {
+                updateScheduleProgress(currentActiveTask.id, 0);
+                currentActiveTask = null;
+            }
+        }
+
+        function toggleMainTimer() {
+            if (mainTimer) {
+                stopMainTimer();
+            } else {
+                const nextTask = getNextIncompleteTask();
+                if (nextTask) {
+                    startMainTimer(nextTask.id);
+                }
+            }
+        }
+
+        function skipToNextTask() {
+            stopMainTimer();
+            const nextTask = getNextIncompleteTask();
+            if (nextTask) {
+                updateMainTimerDisplay(nextTask);
+            }
+        }
+
+        function getNextIncompleteTask() {
+            return schedule.find(task => !taskStates[task.id]);
+        }
+
+        function updateMainTimerDisplay(task) {
+            if (!task) {
+                document.getElementById('mainTimerText').textContent = 'ALL DONE!';
+                document.getElementById('mainTimerActivity').textContent = 'No more tasks';
+                document.getElementById('mainTimerSchedule').textContent = '';
+                document.getElementById('mainTimerBtn').disabled = true;
+                return;
+            }
+            
+            const duration = parseDuration(task.duration);
+            document.getElementById('mainTimerText').textContent = formatTime(duration);
+            document.getElementById('mainTimerActivity').textContent = task.activity;
+            document.getElementById('mainTimerSchedule').textContent = `${task.time} • ${task.duration}`;
+            document.getElementById('mainTimerBtn').disabled = false;
+            document.getElementById('mainTimerBtn').textContent = 'Start Timer';
+        }
+
+        function updateScheduleProgress(taskId, percentage) {
+            const progressBar = document.getElementById(`progress-bar-${taskId}`);
+            const progressText = document.getElementById(`progress-percentage-${taskId}`);
+            
+            if (progressBar && progressText) {
+                progressBar.style.width = `${percentage}%`;
+                progressText.textContent = `${Math.round(percentage)}%`;
+            }
+        }
+
         function updateCurrentTime() {
-            const now = new Date();
-            const timeString = now.toLocaleTimeString('en-US', { 
-                hour12: true, 
-                hour: 'numeric', 
-                minute: '2-digit',
-                second: '2-digit'
-            });
-            
-            const currentTask = getCurrentTask();
-            const currentTaskText = currentTask ? ` | Current Task: ${currentTask.activity}` : '';
-            
-            document.getElementById('currentTime').textContent = `Current Time: ${timeString}${currentTaskText}`;
-            
-            // Update highlighting
+            // Update highlighting for current time-based task
             highlightCurrentTask();
+            
+            // Update main timer display if no timer is running
+            if (!mainTimer && !currentActiveTask) {
+                const nextTask = getNextIncompleteTask();
+                updateMainTimerDisplay(nextTask);
+            }
         }
 
         function renderSchedule() {
@@ -556,16 +707,10 @@
                     </td>
                     <td class="px-6 py-4 text-center">
                         <div class="flex flex-col items-center gap-2">
-                            <div id="timer-${task.id}" class="circular-timer">
-                                <svg>
-                                    <circle class="timer-bg" cx="40" cy="40" r="35"></circle>
-                                    <circle class="timer-progress" cx="40" cy="40" r="35"></circle>
-                                </svg>
-                                <div class="timer-text">${task.duration}</div>
+                            <div class="w-20 bg-gray-200 rounded-full h-3">
+                                <div id="progress-bar-${task.id}" class="bg-green-500 h-3 rounded-full transition-all duration-300" style="width: 0%"></div>
                             </div>
-                            <button id="timer-btn-${task.id}" onclick="toggleTimer(${task.id})" class="bg-gray-600 hover:bg-gray-700 text-white px-3 py-1 rounded text-xs font-medium transition-colors">
-                                Start Timer
-                            </button>
+                            <span id="progress-percentage-${task.id}" class="text-xs text-gray-600 font-medium">0%</span>
                         </div>
                     </td>
                     <td class="px-6 py-4 text-center">
@@ -761,5 +906,5 @@
         updateCurrentTime();
         setInterval(updateCurrentTime, 1000);
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'96568d13008bbc52',t:'MTc1MzU2MDczOC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9656c7a5a33dbc34',t:'MTc1MzU2MzEzNy4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
