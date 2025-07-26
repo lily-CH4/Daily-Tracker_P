@@ -1,0 +1,124 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lilith's Daily Tracker</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f9f9f9; padding: 20px; }
+    h1 { text-align: center; color: #4a4a4a; }
+    .section { background: #fff; padding: 15px; border-radius: 10px; margin: 20px auto; max-width: 800px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    label { display: block; margin-top: 10px; }
+    input[type="time"], input[type="number"], select, textarea { width: 100%; padding: 8px; margin-top: 5px; }
+    input[type="checkbox"] { margin-right: 10px; }
+    .progress-bar { height: 20px; background: #e0e0e0; border-radius: 10px; overflow: hidden; margin-top: 10px; }
+    .progress-fill { height: 100%; background: #4caf50; text-align: center; color: #fff; line-height: 20px; }
+  </style>
+</head>
+<body>
+  <h1>Topnotcher Mode: Activated</h1>
+
+  <div class="section">
+    <h2>Daily Habits</h2>
+    <label><input type="checkbox"> Morning Prayer</label>
+    <label><input type="checkbox"> Meditation</label>
+    <label><input type="checkbox"> Exercise</label>
+    <label><input type="checkbox"> Shower & Skin Care (AM)</label>
+    <label><input type="checkbox"> Breakfast</label>
+    <label><input type="checkbox"> Lunch</label>
+    <label><input type="checkbox"> Dinner</label>
+    <label><input type="checkbox"> Shower & Skin Care (PM)</label>
+    <label><input type="checkbox"> Journal</label>
+    <label><input type="checkbox"> Evening Prayer</label>
+  </div>
+
+  <div class="section">
+    <h2>Study Hours</h2>
+    <label>Morning Study (7AM - 12PM): <input type="number" min="0" max="5"> hrs</label>
+    <label>Afternoon Study (1PM - 5PM): <input type="number" min="0" max="4"> hrs</label>
+    <label>Evening Study (6PM - 8:30PM): <input type="number" min="0" max="2.5" step="0.5"> hrs</label>
+  </div>
+
+  <div class="section">
+    <h2>Sleep Tracker</h2>
+    <label>Sleep Start Time: <input type="time" id="sleepStart"></label>
+    <label>Wake Time: <input type="time" id="wakeTime"></label>
+    <p>Total Sleep Hours: <span id="sleepHours">0</span></p>
+  </div>
+
+  <div class="section">
+    <h2>Mood & Focus</h2>
+    <label>Mood:
+      <select>
+        <option>😊 Happy</option>
+        <option>😐 Meh</option>
+        <option>😞 Low</option>
+      </select>
+    </label>
+    <label>Focus Level:
+      <select>
+        <option>🔥 Focused</option>
+        <option>😶 Scattered</option>
+        <option>😴 Drained</option>
+      </select>
+    </label>
+  </div>
+
+  <div class="section">
+    <h2>Progress</h2>
+    <label>Thesis Progress: <input type="number" min="0" max="100" id="thesis">% </label>
+    <div class="progress-bar"><div id="thesisBar" class="progress-fill" style="width: 0%">0%</div></div>
+
+    <label>Board Review Progress: <input type="number" min="0" max="100" id="board">% </label>
+    <div class="progress-bar"><div id="boardBar" class="progress-fill" style="width: 0%">0%</div></div>
+  </div>
+
+  <div class="section">
+    <h2>Reflection</h2>
+    <label>What went well?<textarea rows="2"></textarea></label>
+    <label>What held you back?<textarea rows="2"></textarea></label>
+    <label>Small win of the day:<textarea rows="2"></textarea></label>
+  </div>
+
+  <script>
+    const sleepStart = document.getElementById('sleepStart');
+    const wakeTime = document.getElementById('wakeTime');
+    const sleepHours = document.getElementById('sleepHours');
+
+    function calculateSleep() {
+      const start = sleepStart.value;
+      const end = wakeTime.value;
+      if (start && end) {
+        const [sh, sm] = start.split(":").map(Number);
+        const [wh, wm] = end.split(":").map(Number);
+        let startMins = sh * 60 + sm;
+        let endMins = wh * 60 + wm;
+        if (endMins <= startMins) endMins += 1440;
+        const diff = endMins - startMins;
+        sleepHours.textContent = (diff / 60).toFixed(1);
+      }
+    }
+
+    sleepStart.addEventListener('change', calculateSleep);
+    wakeTime.addEventListener('change', calculateSleep);
+
+    const thesisInput = document.getElementById('thesis');
+    const thesisBar = document.getElementById('thesisBar');
+    thesisInput.addEventListener('input', () => {
+      const value = thesisInput.value;
+      thesisBar.style.width = value + "%";
+      thesisBar.textContent = value + "%";
+    });
+
+    const boardInput = document.getElementById('board');
+    const boardBar = document.getElementById('boardBar');
+    boardInput.addEventListener('input', () => {
+      const value = boardInput.value;
+      boardBar.style.width = value + "%";
+      boardBar.textContent = value + "%";
+    });
+  </script>
+</body>
+</html>
+
