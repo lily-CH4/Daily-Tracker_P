@@ -548,36 +548,38 @@
         }
 
         // Save and Load Progress Functions
- function saveProgress() {
-    const progressData = {
-        taskStates: taskStates,
-        todos: todos,
-        expandedTodos: expandedTodos,
-        todoIdCounter: todoIdCounter,
-        lastSaved: new Date().toISOString()
-    };
-    localStorage.setItem('dailyScheduleProgress', JSON.stringify(progressData));
+        function saveProgress() {
+            const progressData = {
+                taskStates: taskStates,
+                todos: todos,
+                expandedTodos: expandedTodos,
+                todoIdCounter: todoIdCounter,
+                lastSaved: new Date().toISOString()
+            };
+            
+            localStorage.setItem('dailyScheduleProgress', JSON.stringify(progressData));
+        }
 
-    // Auto-sync to Google Sheets
-    syncTodosToGoogleSheets();
-}
+                // Auto-sync to Google Sheets
+            syncTodosToGoogleSheets();
+        }
+        
+        function syncTodosToGoogleSheets() {
+            const scriptURL = https://script.google.com/macros/s/AKfycbzhymXf20K0fbGff96MOgN65SdkHPi1iguZpsKCVaARBAvJlPe2MX9YX_nPd9r-I9sL4g/exec; // Replace with your actual Web App URL
+        
+            fetch(scriptURL, {
+                method: "POST",
+                body: JSON.stringify({
+                    action: "saveTodos",
+                    todos: todos
+                }),
+            })
+            .then(res => res.text())
+            .then(msg => console.log("Synced to Google Sheets"))
+            .catch(err => console.error("Error syncing to Sheets:", err));
+        }
 
-function syncTodosToGoogleSheets() {
-    const scriptURL = https://script.google.com/macros/s/AKfycbzhymXf20K0fbGff96MOgN65SdkHPi1iguZpsKCVaARBAvJlPe2MX9YX_nPd9r-I9sL4g/exec; // Replace with your actual Web App URL
-
-    fetch(scriptURL, {
-        method: "POST",
-        body: JSON.stringify({
-            action: "saveTodos",
-            todos: todos
-        }),
-    })
-    .then(res => res.text())
-    .then(msg => console.log("Synced to Google Sheets"))
-    .catch(err => console.error("Error syncing to Sheets:", err));
-}
-
-
+        
         function loadProgress() {
             const savedData = localStorage.getItem('dailyScheduleProgress');
             if (savedData) {
